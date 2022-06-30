@@ -3,6 +3,22 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Etc
+*.json
+*.csv
+*.jpg
+*.png
+*.jpeg
+*.mp4
+*.mov
+*.xlsx
+*.tsv
+*.ckpt
+*.checkpoint
+*.h5
+*.pt
+*.pickle
+
 # C extensions
 *.so
 
