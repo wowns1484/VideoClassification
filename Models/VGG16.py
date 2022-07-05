@@ -1,7 +1,4 @@
-from turtle import forward, st
 import torch.nn as nn
-import torch.nn.functional as F
-import torch
 
 class VGG16(nn.Module):
     def __init__(self) -> None:
@@ -26,11 +23,11 @@ class VGG16(nn.Module):
         self.conv5_3 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1, padding=1)
         self.bn_4_5 = nn.BatchNorm2d(512)
         self.adaptive_avg_pool = nn.AdaptiveAvgPool2d(8)
-        self.drop_out = nn.Dropout(0.5)  
+        self.drop_out = nn.Dropout(0.1)  
         self.linear_1 = nn.Linear(512*8*8, 4096)
-        self.linear_2 = nn.Linear(4096, 1024)
-        self.linear_3 = nn.Linear(1024, 128)
-        self.linear_4 = nn.Linear(128, 1)
+        self.linear_2 = nn.Linear(4096, 512)
+        self.linear_3 = nn.Linear(512, 64)
+        self.linear_4 = nn.Linear(64, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):

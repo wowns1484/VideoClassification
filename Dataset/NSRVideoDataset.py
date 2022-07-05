@@ -2,10 +2,10 @@ import torch
 from torch.utils.data import Dataset
 from enum import Enum
 import glob
-from sklearn.model_selection import train_test_split
 import cv2
 import numpy as np
 import math
+import random
 
 class DatasetType(Enum):
     TRAIN = "Train"
@@ -19,23 +19,24 @@ class NSRVideoDataset(Dataset):
         self.transform = transform
         self.cache = {}
 
-        label_paths = glob.glob(dataset_path + "\*")
-        illegal_paths = glob.glob(label_paths[0] + "\*")
-        labels = [[1]] * len(illegal_paths)
+        self.label_paths = glob.glob(dataset_path + "\*")
+        legal_paths = glob.glob(self.label_paths[0] + "\*")
+        legal_paths = [(legal_path, [1]) for legal_path in legal_paths]
+        
+        illegal_paths = glob.glob(self.label_paths[1] + "\*")
+        illegal_paths = [(illegal_path, [0]) for illegal_path in illegal_paths]
 
-        legal_paths = glob.glob(label_paths[1] + "\*")
-        labels += [[0]] * len(legal_paths)
-        data_paths = illegal_paths + legal_paths
-
-        x_train, x_valid, y_train, y_valid = train_test_split(data_paths, labels, test_size=split[0], shuffle=True, stratify=labels, random_state=34)
-        x_valid, x_test, y_valid, y_test = train_test_split(x_valid, y_valid, test_size=split[1], shuffle=True, stratify=y_valid, random_state=34)
+        train_split_index = int(len(legal_paths)*split[0])
+        validation_split_index = train_split_index + int(len(legal_paths)*split[1])
 
         if dataset_type == DatasetType.TRAIN.value:
-            self.data_paths, self.labels = x_train, y_train
+            self.data_paths = legal_paths[:train_split_index] + illegal_paths[:train_split_index]
         elif dataset_type == DatasetType.VALIDATION.value:
-            self.data_paths, self.labels = x_valid, y_valid
+            self.data_paths = legal_paths[train_split_index:validation_split_index] + illegal_paths[train_split_index:validation_split_index]
         else:
-            self.data_paths, self.labels = x_test, y_test
+            self.data_paths = legal_paths[validation_split_index:] + illegal_paths[validation_split_index:]
+        
+        random.shuffle(self.data_paths)
             
     def __len__(self):
         return len(self.data_paths)
@@ -44,16 +45,15 @@ class NSRVideoDataset(Dataset):
         if index in self.cache:
             return self.cache[index]
 
-        image = self.extract_diagnoal_matrix(self.data_paths[index])
-        label = torch.FloatTensor(self.labels[index])
-        # label = self.labels[index]
+        video_diagonal = self.extract_diagnoal_matrix(self.data_paths[index][0])
+        label = torch.FloatTensor(self.data_paths[index][1])
 
         if self.transform is not None:
-            image = self.transform(image)
+            video_diagonal = self.transform(video_diagonal)
         
-        self.cache[index] = image, label
+        self.cache[index] = (video_diagonal, label)
 
-        return image, label
+        return video_diagonal, label
         
 
     def extract_diagnoal_matrix(self, data_path : str):
@@ -61,7 +61,7 @@ class NSRVideoDataset(Dataset):
         video_total_frames_num = videocap.get(cv2.CAP_PROP_FRAME_COUNT)
         video_frame_per_s = int(videocap.get(cv2.CAP_PROP_FPS))
 
-        sections, retstep = np.linspace(1, video_total_frames_num, 256, retstep=True)
+        sections, retstep = np.linspace(1, video_total_frames_num, 448, retstep=True)
         sections = list(map(math.floor, sections))
         frame_diagonals = []
 
@@ -77,6 +77,9 @@ class NSRVideoDataset(Dataset):
 
                 frame_r, frame_g, frame_b = frame[:,:,0], frame[:,:,1], frame[:,:,2]
                 frame_r, frame_g, frame_b = np.diag(frame_r), np.diag(frame_g), np.diag(frame_b)
+                # frame_r = [[np.mean(row) / 255] for row in frame_r]
+                # frame_g = [[np.mean(row) / 255] for row in frame_g]
+                # frame_b = [[np.mean(row) / 255] for row in frame_b]
                 
                 frame_diagonal = np.stack([frame_r, frame_g, frame_b], -1)
                 frame_diagonal = np.expand_dims(frame_diagonal, 1)
