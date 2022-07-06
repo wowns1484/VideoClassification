@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import math
 import random
+from PIL import Image
 
 class DatasetType(Enum):
     TRAIN = "Train"
@@ -26,15 +27,15 @@ class NSRVideoDataset(Dataset):
         illegal_paths = glob.glob(self.label_paths[1] + "\*")
         illegal_paths = [(illegal_path, [0]) for illegal_path in illegal_paths]
 
-        train_split_index = int(len(legal_paths)*split[0])
-        validation_split_index = train_split_index + int(len(legal_paths)*split[1])
+        train_split_index_legal, train_split_index_illegal = int(len(legal_paths)*split[0]), int(len(illegal_paths)*split[0])
+        validation_split_index_legal, validation_split_index_illegal = train_split_index_legal + int(len(legal_paths)*split[1]), train_split_index_illegal + int(len(illegal_paths)*split[1])
 
         if dataset_type == DatasetType.TRAIN.value:
-            self.data_paths = legal_paths[:train_split_index] + illegal_paths[:train_split_index]
+            self.data_paths = legal_paths[:train_split_index_legal] + illegal_paths[:train_split_index_illegal]
         elif dataset_type == DatasetType.VALIDATION.value:
-            self.data_paths = legal_paths[train_split_index:validation_split_index] + illegal_paths[train_split_index:validation_split_index]
+            self.data_paths = legal_paths[train_split_index_legal:validation_split_index_legal] + illegal_paths[train_split_index_illegal:validation_split_index_illegal]
         else:
-            self.data_paths = legal_paths[validation_split_index:] + illegal_paths[validation_split_index:]
+            self.data_paths = legal_paths[validation_split_index_legal:] + illegal_paths[validation_split_index_illegal:]
         
         random.shuffle(self.data_paths)
             
@@ -46,6 +47,7 @@ class NSRVideoDataset(Dataset):
             return self.cache[index]
 
         video_diagonal = self.extract_diagnoal_matrix(self.data_paths[index][0])
+        # video_diagonal = video_diagonal.permute(2, 0, 1)
         label = torch.FloatTensor(self.data_paths[index][1])
 
         if self.transform is not None:
@@ -61,7 +63,7 @@ class NSRVideoDataset(Dataset):
         video_total_frames_num = videocap.get(cv2.CAP_PROP_FRAME_COUNT)
         video_frame_per_s = int(videocap.get(cv2.CAP_PROP_FPS))
 
-        sections, retstep = np.linspace(1, video_total_frames_num, 448, retstep=True)
+        sections, retstep = np.linspace(1, video_total_frames_num, 256, retstep=True)
         sections = list(map(math.floor, sections))
         frame_diagonals = []
 
@@ -88,5 +90,6 @@ class NSRVideoDataset(Dataset):
         
         videocap.release()
         video_diagonal = np.concatenate(frame_diagonals, axis=1)
+        video_diagonal = Image.fromarray(video_diagonal)
     
         return video_diagonal
