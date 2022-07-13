@@ -21,14 +21,17 @@ class NSRVideoDataset(Dataset):
         self.cache = {}
 
         self.label_paths = glob.glob(dataset_path + "\*")
-        legal_paths = glob.glob(self.label_paths[0] + "\*")
+        legal_paths = glob.glob(self.label_paths[0] + "\*.mp4")
         legal_paths = [(legal_path, [1]) for legal_path in legal_paths]
         
-        illegal_paths = glob.glob(self.label_paths[1] + "\*")
+        illegal_paths = glob.glob(self.label_paths[1] + "\*.mp4")
         illegal_paths = [(illegal_path, [0]) for illegal_path in illegal_paths]
 
         train_split_index_legal, train_split_index_illegal = int(len(legal_paths)*split[0]), int(len(illegal_paths)*split[0])
         validation_split_index_legal, validation_split_index_illegal = train_split_index_legal + int(len(legal_paths)*split[1]), train_split_index_illegal + int(len(illegal_paths)*split[1])
+
+        random.shuffle(legal_paths)
+        random.shuffle(illegal_paths)
 
         if dataset_type == DatasetType.TRAIN.value:
             self.data_paths = legal_paths[:train_split_index_legal] + illegal_paths[:train_split_index_illegal]
@@ -66,7 +69,8 @@ class NSRVideoDataset(Dataset):
         sections, retstep = np.linspace(1, video_total_frames_num, 256, retstep=True)
         sections = list(map(math.floor, sections))
         frame_diagonals = []
-
+        video_name = data_path.split("\\")[-1]
+        
         while(videocap.isOpened()):
             ret, frame = videocap.read()
             
@@ -74,22 +78,17 @@ class NSRVideoDataset(Dataset):
                 break
             
             if int(videocap.get(cv2.CAP_PROP_POS_FRAMES)) in sections:
-                # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
                 frame = cv2.resize(frame, (256, 256))
 
                 frame_r, frame_g, frame_b = frame[:,:,0], frame[:,:,1], frame[:,:,2]
                 frame_r, frame_g, frame_b = np.diag(frame_r), np.diag(frame_g), np.diag(frame_b)
-                # frame_r = [[np.mean(row) / 255] for row in frame_r]
-                # frame_g = [[np.mean(row) / 255] for row in frame_g]
-                # frame_b = [[np.mean(row) / 255] for row in frame_b]
-                
+
                 frame_diagonal = np.stack([frame_r, frame_g, frame_b], -1)
                 frame_diagonal = np.expand_dims(frame_diagonal, 1)
-
                 frame_diagonals.append(frame_diagonal)
         
         videocap.release()
         video_diagonal = np.concatenate(frame_diagonals, axis=1)
         video_diagonal = Image.fromarray(video_diagonal)
-    
+
         return video_diagonal

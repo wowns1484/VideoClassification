@@ -17,7 +17,6 @@ class Resnet101(nn.Module):
         self.bn_3 = nn.BatchNorm1d(128, momentum=0.01)
         self.linear_4 = nn.Linear(128, 1)
         self.sigmoid = nn.Sigmoid()
-        self.flatten = nn.Flatten()
 
     def forward(self, images):
         x = self.resnet(images)
