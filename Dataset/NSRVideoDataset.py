@@ -66,7 +66,7 @@ class NSRVideoDataset(Dataset):
         video_total_frames_num = videocap.get(cv2.CAP_PROP_FRAME_COUNT)
         video_frame_per_s = int(videocap.get(cv2.CAP_PROP_FPS))
 
-        sections, retstep = np.linspace(1, video_total_frames_num, 256, retstep=True)
+        sections, retstep = np.linspace(1, video_total_frames_num, 257, retstep=True)
         sections = list(map(math.floor, sections))
         frame_diagonals = []
         video_name = data_path.split("\\")[-1]
@@ -80,15 +80,26 @@ class NSRVideoDataset(Dataset):
             if int(videocap.get(cv2.CAP_PROP_POS_FRAMES)) in sections:
                 frame = cv2.resize(frame, (256, 256))
 
-                frame_r, frame_g, frame_b = frame[:,:,0], frame[:,:,1], frame[:,:,2]
+                if int(videocap.get(cv2.CAP_PROP_POS_FRAMES)) == 1:
+                    pre_frame = frame
+                    continue
+                
+                frame_df = cv2.absdiff(pre_frame, frame)
+
+                frame_r, frame_g, frame_b = frame_df[:,:,0], frame_df[:,:,1], frame_df[:,:,2]
                 frame_r, frame_g, frame_b = np.diag(frame_r), np.diag(frame_g), np.diag(frame_b)
 
                 frame_diagonal = np.stack([frame_r, frame_g, frame_b], -1)
-                frame_diagonal = np.expand_dims(frame_diagonal, 1)
+                frame_diagonal = np.expand_dims(frame_diagonal, 0)
+                # frame_diagonal = np.expand_dims(frame_diagonal, 0)
                 frame_diagonals.append(frame_diagonal)
-        
+                pre_frame = frame
+
         videocap.release()
-        video_diagonal = np.concatenate(frame_diagonals, axis=1)
+        video_diagonal = np.concatenate(frame_diagonals, axis=0)
+        # video_diagonal = np.concatenate(frame_diagonals, axis=0)
+        # video_diagonal = np.sum(video_diagonal, axis=1) / 256
+        # video_diagonal = video_diagonal.astype(np.uint8)
         video_diagonal = Image.fromarray(video_diagonal)
 
         return video_diagonal
