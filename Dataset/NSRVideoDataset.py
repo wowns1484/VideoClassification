@@ -7,6 +7,7 @@ import numpy as np
 import math
 import random
 from PIL import Image
+from torchvision.transforms import transforms
 
 class DatasetType(Enum):
     TRAIN = "Train"
@@ -19,6 +20,9 @@ class NSRVideoDataset(Dataset):
         self.dataset_type = dataset_type
         self.transform = transform
         self.cache = {}
+        self.transform_tensor = transforms.Compose([
+            transforms.ToTensor()
+        ])
 
         self.label_paths = glob.glob(dataset_path + "\*")
         legal_paths = glob.glob(self.label_paths[0] + "\*.mp4")
@@ -50,11 +54,13 @@ class NSRVideoDataset(Dataset):
             return self.cache[index]
 
         video_diagonal = self.extract_diagnoal_matrix(self.data_paths[index][0])
-        # video_diagonal = video_diagonal.permute(2, 0, 1)
         label = torch.FloatTensor(self.data_paths[index][1])
 
-        if self.transform is not None:
-            video_diagonal = self.transform(video_diagonal)
+        if self.transform:
+            # video_diagonal = self.transform_diagonal(video_diagonal)
+            video_diagonal_tr = self.transform_diagonal(video_diagonal.copy())
+            mean, std = video_diagonal_tr.mean([1,2]), video_diagonal_tr.std([1,2])
+            video_diagonal = self.transform_diagonal(video_diagonal, mean, std, is_normalize=True)
         
         self.cache[index] = (video_diagonal, label)
 
@@ -79,6 +85,7 @@ class NSRVideoDataset(Dataset):
             
             if int(videocap.get(cv2.CAP_PROP_POS_FRAMES)) in sections:
                 frame = cv2.resize(frame, (256, 256))
+                # frame = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX)
 
                 if int(videocap.get(cv2.CAP_PROP_POS_FRAMES)) == 1:
                     pre_frame = frame
@@ -86,20 +93,54 @@ class NSRVideoDataset(Dataset):
                 
                 frame_df = cv2.absdiff(pre_frame, frame)
 
+                # frame_r, frame_g, frame_b = frame[:,:,0], frame[:,:,1], frame[:,:,2]
                 frame_r, frame_g, frame_b = frame_df[:,:,0], frame_df[:,:,1], frame_df[:,:,2]
                 frame_r, frame_g, frame_b = np.diag(frame_r), np.diag(frame_g), np.diag(frame_b)
 
                 frame_diagonal = np.stack([frame_r, frame_g, frame_b], -1)
-                frame_diagonal = np.expand_dims(frame_diagonal, 0)
-                # frame_diagonal = np.expand_dims(frame_diagonal, 0)
+                frame_diagonal = np.expand_dims(frame_diagonal, 1)
                 frame_diagonals.append(frame_diagonal)
                 pre_frame = frame
 
+                # frame_r_ht = cv2.calcHist(frame_r, [0], None, [256], [0, 255])
+                # frame_g_ht = cv2.calcHist(frame_g, [0], None, [256], [0, 255])
+                # frame_b_ht = cv2.calcHist(frame_b, [0], None, [256], [0, 255])
+
+                # if int(videocap.get(cv2.CAP_PROP_POS_FRAMES)) == 1:
+                #     pre_frame_r_ht = frame_r_ht
+                #     pre_frame_g_ht = frame_g_ht
+                #     pre_frame_b_ht = frame_b_ht
+                #     continue
+                
+                # frame_r_ht_df = abs(pre_frame_r_ht - frame_r_ht)
+                # frame_g_ht_df = abs(pre_frame_g_ht - frame_g_ht)
+                # frame_b_ht_df = abs(pre_frame_b_ht - frame_b_ht)
+
+                # frame_diagonal = np.stack([frame_r_ht, frame_g_ht, frame_b_ht], -1)
+                # frame_diagonals.append(frame_diagonal)
+                # pre_frame_r_ht = frame_r_ht
+                # pre_frame_g_ht = frame_g_ht
+                # pre_frame_b_ht = frame_b_ht
+
         videocap.release()
-        video_diagonal = np.concatenate(frame_diagonals, axis=0)
-        # video_diagonal = np.concatenate(frame_diagonals, axis=0)
-        # video_diagonal = np.sum(video_diagonal, axis=1) / 256
+        video_diagonal = np.concatenate(frame_diagonals, axis=1)
+        # video_diagonal = np.log(video_diagonal + 1)
         # video_diagonal = video_diagonal.astype(np.uint8)
-        video_diagonal = Image.fromarray(video_diagonal)
+        # video_diagonal = Image.fromarray(video_diagonal)
 
         return video_diagonal
+
+    def transform_diagonal(self, image, mean = 0, std = 0, is_normalize = False):
+        if is_normalize:
+            transform = transforms.Compose([
+                transforms.ToTensor(), 
+                transforms.Normalize(mean, std)
+            ])
+
+            return transform(image)
+        else:
+            transform = transforms.Compose([
+                transforms.ToTensor(), 
+            ])
+
+            return transform(image)

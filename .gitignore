@@ -20,6 +20,7 @@ __pycache__/
 *.pickle
 events.out.tfevents.*
 checkpoint-*.*
+*.txt
 
 # C extensions
 *.so

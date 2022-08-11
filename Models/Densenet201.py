@@ -7,7 +7,7 @@ class Densenet201(nn.Module):
         super(Densenet201, self).__init__()
         modules = densenet201().features
         self.densenet = nn.Sequential(*modules)         
-        self.linear_1 = nn.Linear(94080, 4048)
+        self.linear_1 = nn.Linear(122880, 4048)  # 224x224: 94080, 256x256: 122880
         self.bn_1 = nn.BatchNorm1d(4048, momentum=0.01)
         self.linear_2 = nn.Linear(4048, 1024)
         self.bn_2 = nn.BatchNorm1d(1024, momentum=0.01)
