@@ -95,36 +95,37 @@ class NSRVideoDataset(Dataset):
 
                 # frame_r, frame_g, frame_b = frame[:,:,0], frame[:,:,1], frame[:,:,2]
                 frame_r, frame_g, frame_b = frame_df[:,:,0], frame_df[:,:,1], frame_df[:,:,2]
-                frame_r, frame_g, frame_b = np.diag(frame_r), np.diag(frame_g), np.diag(frame_b)
+                # frame_r, frame_g, frame_b = np.diag(frame_r), np.diag(frame_g), np.diag(frame_b)
 
-                frame_diagonal = np.stack([frame_r, frame_g, frame_b], -1)
-                frame_diagonal = np.expand_dims(frame_diagonal, 1)
-                frame_diagonals.append(frame_diagonal)
-                pre_frame = frame
+                # frame_diagonal = np.stack([frame_r, frame_g, frame_b], -1)
+                # frame_diagonal = np.expand_dims(frame_diagonal, 1)
+                # frame_diagonals.append(frame_diagonal)
+                # pre_frame = frame
 
-                # frame_r_ht = cv2.calcHist(frame_r, [0], None, [256], [0, 255])
-                # frame_g_ht = cv2.calcHist(frame_g, [0], None, [256], [0, 255])
-                # frame_b_ht = cv2.calcHist(frame_b, [0], None, [256], [0, 255])
+                frame_r_ht = cv2.calcHist(frame_r, [0], None, [256], [0, 255])
+                frame_g_ht = cv2.calcHist(frame_g, [0], None, [256], [0, 255])
+                frame_b_ht = cv2.calcHist(frame_b, [0], None, [256], [0, 255])
 
-                # if int(videocap.get(cv2.CAP_PROP_POS_FRAMES)) == 1:
-                #     pre_frame_r_ht = frame_r_ht
-                #     pre_frame_g_ht = frame_g_ht
-                #     pre_frame_b_ht = frame_b_ht
-                #     continue
+                if int(videocap.get(cv2.CAP_PROP_POS_FRAMES)) == 1:
+                    pre_frame_r_ht = frame_r_ht
+                    pre_frame_g_ht = frame_g_ht
+                    pre_frame_b_ht = frame_b_ht
+                    continue
                 
                 # frame_r_ht_df = abs(pre_frame_r_ht - frame_r_ht)
                 # frame_g_ht_df = abs(pre_frame_g_ht - frame_g_ht)
                 # frame_b_ht_df = abs(pre_frame_b_ht - frame_b_ht)
 
-                # frame_diagonal = np.stack([frame_r_ht, frame_g_ht, frame_b_ht], -1)
-                # frame_diagonals.append(frame_diagonal)
+                frame_diagonal = np.stack([frame_r_ht, frame_g_ht, frame_b_ht], -1)
+                # frame_diagonal = np.stack([frame_r_ht_df, frame_g_ht_df, frame_b_ht_df], -1)
+                frame_diagonals.append(frame_diagonal)
                 # pre_frame_r_ht = frame_r_ht
                 # pre_frame_g_ht = frame_g_ht
                 # pre_frame_b_ht = frame_b_ht
 
         videocap.release()
         video_diagonal = np.concatenate(frame_diagonals, axis=1)
-        # video_diagonal = np.log(video_diagonal + 1)
+        video_diagonal = np.log(video_diagonal + 1)
         # video_diagonal = video_diagonal.astype(np.uint8)
         # video_diagonal = Image.fromarray(video_diagonal)
 

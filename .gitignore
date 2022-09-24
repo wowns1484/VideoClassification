@@ -21,6 +21,7 @@ __pycache__/
 events.out.tfevents.*
 checkpoint-*.*
 *.txt
+*.mp3
 
 # C extensions
 *.so
